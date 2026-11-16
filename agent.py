@@ -1,19 +1,15 @@
 import requests
 
-from schema import get_current_date_schema
-from tools import get_current_date
-
-AVAILABLE_TOOLS = {
-    "get_current_date": get_current_date,
-}
+from tool_registry import TOOL_REGISTRY
 
 MAX_STEPS = 5  # Maximum number of steps to prevent infinite loops
 
 
 class Agent:
-    def __init__(self, base_url, model):
+    def __init__(self, base_url, model, debug=None):
         self.base_url = base_url
         self.model = model
+        self.debug = debug
 
     def post(self, messages):
         """
@@ -24,7 +20,7 @@ class Agent:
         payload = {
             "model": self.model,
             "messages": messages,
-            "tools": [get_current_date_schema],
+            "tools": [tool["schema"] for tool in TOOL_REGISTRY.values()],
             "stream": False,
             "keep_alive": "30m",
             "think": False,
@@ -40,7 +36,7 @@ class Agent:
 
         response.raise_for_status()  # Raise an exception for HTTP errors
         # hide the debug JSON print behind a flag.
-        if hasattr(self, 'debug') and self.debug:
+        if self.debug:
             print(
                 "Response JSON:", response.json()
             )  # Debugging line to print the response JSON
@@ -50,12 +46,11 @@ class Agent:
         """
         Calls the specified tool with the given arguments and returns the result.
         """
-        if tool_name in AVAILABLE_TOOLS:
-            #wrap with try catch
+        if tool_name in TOOL_REGISTRY:
             try:
-                result = AVAILABLE_TOOLS[tool_name](**tool_args)
+                result = TOOL_REGISTRY[tool_name]["function"](**tool_args)
                 return result
-            except (TypeError, ValueError) as e:
+            except Exception as e:
                 return f"Error calling tool {tool_name}: {e!s}"
         else:
             return f"Tool {tool_name} not found."
@@ -89,9 +84,6 @@ class Agent:
 
         return "Maximum steps reached without a final answer."
 
-    debug = None
-
-
 if __name__ == "__main__":
     base_url = "http://localhost:11434"
     model = "qwen3:8b"
@@ -100,7 +92,7 @@ if __name__ == "__main__":
     messages = [
         {
             "role": "system",
-            "content": "You are a helpful coding assistant, answer concisely, code first, no greetings.",
+            "content": "You are a helpful coding assistant, answer concisely, code first, no greetings, read files from the project folder, and do not make assumptions about file contents. call tools to read files instead of guessing their contents.",
         },
     ]
     while True:
