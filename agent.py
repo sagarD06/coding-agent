@@ -30,7 +30,7 @@ class Agent:
             "think": False,
             "options": {"num_ctx": 4096},
         }
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, timeout=600)
 
         if response.status_code != 200:
             print(f"Error: Received status code {response.status_code} from the API.")
@@ -39,9 +39,11 @@ class Agent:
             )  # Debugging line to print the response content
 
         response.raise_for_status()  # Raise an exception for HTTP errors
-        print(
-            "Response JSON:", response.json()
-        )  # Debugging line to print the response JSON
+        # hide the debug JSON print behind a flag.
+        if hasattr(self, 'debug') and self.debug:
+            print(
+                "Response JSON:", response.json()
+            )  # Debugging line to print the response JSON
         return response.json()["message"]
 
     def tool_call(self, tool_name, tool_args):
@@ -49,47 +51,45 @@ class Agent:
         Calls the specified tool with the given arguments and returns the result.
         """
         if tool_name in AVAILABLE_TOOLS:
-            return AVAILABLE_TOOLS[tool_name](**tool_args)
+            #wrap with try catch
+            try:
+                result = AVAILABLE_TOOLS[tool_name](**tool_args)
+                return result
+            except (TypeError, ValueError) as e:
+                return f"Error calling tool {tool_name}: {e!s}"
         else:
             return f"Tool {tool_name} not found."
 
-    def chat(self, messages):
+    def run_turn(self, messages, user_input):
         """
-        Sends a chat request to the API and returns the assistant's reply.
+        Handles one user turn and returns the assistant's final reply.
         """
-        while True:
-            user_input = input("User: ")
-            if user_input.lower() in ["exit", "quit"]:
-                break
+        messages.append({"role": "user", "content": user_input})
 
-            messages.append({"role": "user", "content": user_input})
+        for _ in range(MAX_STEPS):
+            reply = self.post(messages)
+            messages.append(reply)
 
-            for _ in range(MAX_STEPS):
-                reply = self.post(messages)
-                messages.append(reply)
+            if not reply.get("tool_calls"):
+                return reply["content"]
 
-                if not reply.get("tool_calls"):
-                    print("Assistant:", reply["content"])
-                    break
+            for tool in reply["tool_calls"]:
+                tool_name = tool["function"]["name"]
+                tool_args = tool["function"].get("arguments", {})
 
-                for tool_call in reply["tool_calls"]:
-                    tool_name = tool_call["function"]["name"]
-                    tool_args = tool_call["function"].get("arguments", {})
+                tool_result = self.tool_call(tool_name, tool_args)
 
-                    tool_result = self.tool_call(
-                        tool_name, tool_args
-                    )  # Call the tool and get the result
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_name": tool_name,
+                        "content": str(tool_result),
+                    }
+                )
 
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "tool_name": tool_name,
-                            "content": str(tool_result),
-                        }
-                    )
+        return "Maximum steps reached without a final answer."
 
-            else:
-                print("Maximum steps reached without a final answer.")
+    debug = None
 
 
 if __name__ == "__main__":
@@ -103,4 +103,10 @@ if __name__ == "__main__":
             "content": "You are a helpful coding assistant, answer concisely, code first, no greetings.",
         },
     ]
-    agent.chat(messages)
+    while True:
+        user_input = input("User: ")
+        if user_input.lower() in ["exit", "quit"]:
+            break
+
+        answer = agent.run_turn(messages, user_input)
+        print("Assistant:", answer)
