@@ -1,8 +1,7 @@
 import requests
 
+from constants import MAX_STEPS
 from tool_registry import TOOL_REGISTRY
-
-MAX_STEPS = 5  # Maximum number of steps to prevent infinite loops
 
 
 class Agent:
@@ -25,6 +24,7 @@ class Agent:
             "keep_alive": "30m",
             "think": False,
             "options": {"num_ctx": 4096},
+            "temperature": 0.1,
         }
         response = requests.post(url, json=payload, timeout=600)
 
@@ -87,7 +87,7 @@ class Agent:
 if __name__ == "__main__":
     base_url = "http://localhost:11434"
     model = "qwen3:8b"
-    agent = Agent(base_url, model)
+    agent = Agent(base_url, model, debug=True)
 
     messages = [
         {

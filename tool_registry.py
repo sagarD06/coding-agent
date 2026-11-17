@@ -1,5 +1,10 @@
-from schema import get_current_date_schema, list_dir_schema, read_file_schema
-from tools import get_current_date, list_dir, read_file
+from schemas import (
+    get_current_date_schema,
+    list_dir_schema,
+    read_file_schema,
+    search_file_schema,
+)
+from tools import get_current_date, list_dir, read_file, search_files
 
 TOOL_REGISTRY = {
     "get_current_date": {
@@ -13,5 +18,9 @@ TOOL_REGISTRY = {
     "list_dir": {
         "schema": list_dir_schema,
         "function": list_dir,
+    },
+    "search_files": {
+        "schema": search_file_schema,
+        "function": search_files, 
     }
 }
