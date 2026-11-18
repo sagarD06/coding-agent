@@ -1,7 +1,7 @@
 import requests
 
 from constants import MAX_STEPS
-from tool_registry import TOOL_REGISTRY
+from tool_registry import TOOL_REGISTRY, validate_tool_registry
 
 
 class Agent:
@@ -23,7 +23,7 @@ class Agent:
             "stream": False,
             "keep_alive": "30m",
             "think": False,
-            "options": {"num_ctx": 4096},
+            "options": {"num_ctx": 4096, "seed": 42},
             "temperature": 0.1,
         }
         response = requests.post(url, json=payload, timeout=600)
@@ -47,13 +47,18 @@ class Agent:
         Calls the specified tool with the given arguments and returns the result.
         """
         if tool_name in TOOL_REGISTRY:
+            if self.debug:
+                print(f"Calling tool: {tool_name}")
             try:
                 result = TOOL_REGISTRY[tool_name]["function"](**tool_args)
                 return result
             except Exception as e:
                 return f"Error calling tool {tool_name}: {e!s}"
         else:
-            return f"Tool {tool_name} not found."
+            available_tools = list(TOOL_REGISTRY.keys())
+            if self.debug:
+                print(f"Tool {tool_name} not found. Available tools: {', '.join(available_tools)}")
+            return f"Tool {tool_name} not found. Available tools: {', '.join(available_tools)}"
 
     def run_turn(self, messages, user_input):
         """
@@ -83,6 +88,8 @@ class Agent:
                 )
 
         return "Maximum steps reached without a final answer."
+
+validate_tool_registry()
 
 if __name__ == "__main__":
     base_url = "http://localhost:11434"

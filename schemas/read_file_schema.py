@@ -12,7 +12,22 @@ read_file_schema = {
                 "file_path": {
                     "type": "string",
                     "description": "The path to the file to be read.",
-                }
+                },
+                "start_line": {
+                    "type": "integer",
+                    "description": (
+                        "Optional 1-indexed line number to start reading from. "
+                        "Search results include line numbers you can pass here."
+                    ),
+                    "default": 1,
+                },
+                "end_line": {
+                    "type": "integer",
+                    "description": (
+                        "Optional 1-indexed inclusive line number to stop at. "
+                        "Search results include line numbers you can pass here."
+                    ),
+                },
             },
             "required": ["file_path"],
         },

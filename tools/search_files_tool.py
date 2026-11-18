@@ -52,5 +52,3 @@ def search_files(keyword, path="."):
         return f"Error: the operating system denied permission to access '{path}'."
     except OSError as error:
         return f"Error accessing '{path}': {error}"
-
-search_files("def read_file")
